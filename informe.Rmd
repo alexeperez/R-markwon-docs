@@ -1,0 +1,112 @@
+---
+title: "Regresión lineal simple"
+author: "Alex E. Pérez Tatamués"
+date: "3 de julio de 2015"
+output: html_document
+---
+
+### Introducción
+
+El presente documento tiene como objetivo presentar la forma de como generar un __reporte__
+automático utilizano:
+
+* R
+* Markdown
+    + __Rmarkdown__
+
+### Descripción información 
+
+Iniciamos cargando el archivo que contiene las varibles a utilizar, el paquete _readxl_ permite
+leer archivos desde excel sin la necesidad de instalar complementos.
+
+```{r,echo=TRUE,eval=TRUE}
+options(warn=-1)
+library(readxl)
+data <- read_excel("data_rls_uti.xlsx",sheet=1,na="")
+str(data)
+```
+Analizando la información disponemos de `r nrow(data)` observaciones de `r ncol(data)` variables.
+Se requiere explicar la varible `r names(data)[1]` en función del regresor `r names(data)[2]`. En lugar de utilizar la función `View(data)` para vizualizar el conjunto de datos empleamos la función `datatable()`
+del paquete `DT()`, esta función permite crear un __HTML widget__ para mostrar data rectangular:
+
+* matrix
+* data frame
+
+en archivos:
+
+* Rmarkdown
+* Rsweave
+* Shiny apps, etc
+
+En nuestro caso tenemos lo siguiente:
+
+```{r,echo=TRUE,eval=TRUE}
+library(DT)
+datatable(data)
+```
+
+### Modelo de regresión lineal simple
+Ajustando un modelo de regresión para las variables `r names(data)[1]` y `r names(data)[2]` utilizando
+la función `lm()` obtenemos el siguiente resultado:
+
+```{r,echo=TRUE,eval=TRUE}
+reg <- lm(Utilidad~Ventas, data)
+summary(reg)
+```
+
+es decir nuestro modelo resultante estaría dado por la expresión
+$$\hat{`r substring(names(data)[1],1,2)`} = `r reg$coefficients[1]` + `r reg$coefficients[2]`  \hat{`r substring(names(data)[2],1,2)`}$$
+
+### Interpretación
+__Interpretación modelo:__ _Si `r names(data)[2]` se incrementa en una unidad, entonces `r names(data)[1]`
+`r tex <-"aumenta"; if(reg$coefficients[2]<0) (tex<-"disminuye");tex` en promedio `r reg$coefficients[2]`
+unidades._
+
+__Interpretación $R^2$:__ _El modelo de regresión lineal obtenido explica el `r paste(100*summary(reg)$r.squared,"%")` de la variabilidad total._
+
+### Pruebas de hipótesis
+
+__Ejercicio lector__
+
+
+
+### Análisis de varianza
+
+Realizando la tabla __ANOVA__ tenemos los siguientes resultados:
+```{r,echo=TRUE,eval=TRUE}
+anova <- aov(reg)
+summary(anova)[[1]]
+```
+
+Como $F=`r summary(anova)[[1]][1,4]`$ es `r tex<-"menor"; if(summary(anova)[[1]][1,4]>qf(0.95,1,(nrow(data)-2))) tex<-"mayor"; tex` que $F_{1,`r (nrow(data)-2)`}(\frac{\alpha}{2})= `r qf(0.95,1,(nrow(data)-2))`$
+`r tex<-"no rechazo"; if(summary(anova)[[1]][1,4]>qf(0.95,1,(nrow(data)-2))) tex<-"rechazo"; tex`
+$H_0: \beta_2=0$.
+
+
+### Intervalos de confianza
+```{r}
+confint(reg,level = 0.95)
+```
+
+### Gráficos residuales
+```{r}
+residuo <- reg[["residuals"]]
+prediccion <- reg[["fitted.values"]]
+data2 <- data.frame(data, prediccion,residuo)
+datatable(data2,filter="top", options = list(
+  searching = TRUE,
+  pageLength = 5,
+ lengthMenu = c(5, 10, 15)
+ ))
+```
+
+```{r, fig.align="center",fig.width=5,fig.height=4}
+hist(residuo,15)
+mean(residuo)
+qqnorm(residuo)
+qqline(residuo,col="red")
+plot(data[,"Ventas"],data[,"Utilidad"])
+plot(residuo,prediccion)
+plot(residuo,data[,"Ventas"])
+```
+
